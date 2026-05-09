@@ -22,13 +22,19 @@
 
 // MODELS
 
-// UQ IO BOARD DATA MODELS
+/* UQ IO BOARD LED DATA MODELS */
 // persistence layer that holds led state
 static uint8_t led_pattern = 0x00;
 // mark is a dash or dot, used for determining end of letter
 static uint8_t has_mark_in_current_char = 0;
 // count how many consecutive
 static uint8_t consecutive_submits = 0;
+
+/* LED MATRIX DATA MODELS */
+// store an in progress char creation (0 for dot, 1 for dash) (see morse_to_char)
+static uint8_t current_char_encoding = 0b1;
+// store the latest created char after user submit
+static char latest_generated_char = 0;
 
 /* Internal Function Declarations */
 void initialise_hardware(void);
@@ -107,7 +113,7 @@ void handle_inputs(void) {
     handle_button_input();
 }
 
-// Model Event Listeners
+/* MODEL EVENT LISTENERS */
 // IO Button Event listeners
 void handle_button_input(void) {
     static uint8_t prev = 0b000;
@@ -120,8 +126,9 @@ void handle_button_input(void) {
     if (edges & (1 << 2)) handle_submit();
 }
 
+// B0
 void handle_dot(void) {
-    // user already input something
+    // uq io board led handling
     if (has_mark_in_current_char) {
         led_pattern = (led_pattern << 2) | 0b01;
     } else {
@@ -131,9 +138,14 @@ void handle_dot(void) {
     consecutive_submits = 0;
 
     update_io_leds();
+
+    // led matrix handling
+    current_char_encoding = current_char_encoding << 1 | 0b0;
 }
 
+// B1
 void handle_dash(void) {
+    // uq io board led handling
     if (has_mark_in_current_char) {
         led_pattern = (led_pattern << 4) | 0b111;
     } else {
@@ -143,9 +155,14 @@ void handle_dash(void) {
     consecutive_submits = 0;
 
     update_io_leds();
+
+    // led matrix handling
+    current_char_encoding = current_char_encoding << 1 | 0b1;
 }
 
+// B2
 void handle_submit(void) {
+    // UQ IO LED Board handler
     if (consecutive_submits > 1) {
         // nothng
     } else if (consecutive_submits == 1) {
@@ -159,12 +176,23 @@ void handle_submit(void) {
     }
 
     update_io_leds();
+
+    // LED Matrix handler
+    latest_generated_char = morse_to_char(current_char_encoding);
+    current_char_encoding = 0b1;  // reset for next char
+    update_led_matrix();
 }
 
-// UI Interface effects
+/* UI INTERFACE VIEWS */
 void update_io_leds(void) {
     // port A = lower half of led
     PORTA = (PORTA & 0xF0) | (led_pattern & 0x0F);
     // port B = uppper half of led
     PORTD = (PORTD & 0b11000011) | ((led_pattern & 0xF0) >> 2);
+}
+
+void update_led_matrix(void) {
+    if (latest_generated_char != 0) {  // skip if nothing submitted yet
+        draw_small_char(latest_generated_char, 13, COLOUR_GREEN);
+    }
 }
