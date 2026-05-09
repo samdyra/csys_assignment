@@ -195,6 +195,14 @@ void update_io_leds(void) {
 
 void update_led_matrix(void) {
     if (latest_generated_char != 0) {  // skip if nothing submitted yet
-        draw_small_char(latest_generated_char, 13, COLOUR_GREEN);
+        // shift left 4 bits
+        ledmatrix_shift_display(SHIFT_LEFT);
+        ledmatrix_shift_display(SHIFT_LEFT);
+        ledmatrix_shift_display(SHIFT_LEFT);
+        ledmatrix_shift_display(SHIFT_LEFT);
+
+        uint8_t GLYPH_WIDTH = 3;
+
+        draw_small_char(latest_generated_char, MATRIX_NUM_COLUMNS - GLYPH_WIDTH, COLOUR_GREEN);
     }
 }
