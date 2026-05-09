@@ -4,7 +4,7 @@
  * Main file
  *
  * Authors: Peter Sutton, Bradley Stone, Ryan Wang
- * Modified by <YOUR NAME HERE>, <YOUR STUDENT ID HERE>
+ * Modified by Dwiputra Sam, 49804980
  */
 
 /* Definitions */
@@ -20,11 +20,26 @@
 #include "serialio.h"
 #include "terminalio.h"
 
+// MODELS
+
+// UQ IO BOARD DATA MODELS
+// persistence layer that holds led state
+static uint8_t led_pattern = 0x00;
+// mark is a dash or dot, used for determining end of letter
+static uint8_t has_mark_in_current_char = 0;
+// count how many consecutive
+static uint8_t consecutive_submits = 0;
+
 /* Internal Function Declarations */
 void initialise_hardware(void);
 void start_morse(void);
 void start_splash_screen(void);
+void handle_button_input(void);
 void handle_inputs(void);
+void handle_dot(void);
+void handle_dash(void);
+void handle_submit(void);
+void update_io_leds(void);
 
 int main(void) {
     initialise_hardware();
@@ -36,7 +51,13 @@ void initialise_hardware(void) {
     spi_setup_master(128);  // init LED matrix
     // Setup serial port for 19200 baud communication
     init_serial_stdio(19200);
-    sei();  // enable global interrupts
+    // setup buttons for io board led
+    DDRB &= ~((1 << DDRB0) | (1 << DDRB1) | (1 << DDRB2));  // clear b0, b1, b2 to be inputs
+    DDRA |= (1 << DDRA0) | (1 << DDRA1) | (1 << DDRA2) |
+            (1 << DDRA3);  // set a0, a1, a2, a3 to be outputs
+    DDRD |= (1 << DDRD5) | (1 << DDRD4) | (1 << DDRD3) |
+            (1 << DDRD2);  // set d3, d4, d5, d2 to be outputs
+    sei();                 // enable global interrupts
 }
 
 void start_splash_screen(void) {
@@ -82,4 +103,68 @@ void handle_inputs(void) {
 
     --. --- --- -.. / .-.. ..- -.-. -.-
     */
+
+    handle_button_input();
+}
+
+// Model Event Listeners
+// IO Button Event listeners
+void handle_button_input(void) {
+    static uint8_t prev = 0b000;
+    uint8_t curr = PINB & ((1 << PINB2) | (1 << PINB1) | (1 << PINB0));
+    uint8_t edges = curr & ~prev;
+    prev = curr;
+
+    if (edges & (1 << 0)) handle_dot();
+    if (edges & (1 << 1)) handle_dash();
+    if (edges & (1 << 2)) handle_submit();
+}
+
+void handle_dot(void) {
+    // user already input something
+    if (has_mark_in_current_char) {
+        led_pattern = (led_pattern << 2) | 0b01;
+    } else {
+        led_pattern = (led_pattern << 1) | 0b01;
+    }
+    has_mark_in_current_char = 1;
+    consecutive_submits = 0;
+
+    update_io_leds();
+}
+
+void handle_dash(void) {
+    if (has_mark_in_current_char) {
+        led_pattern = (led_pattern << 4) | 0b111;
+    } else {
+        led_pattern = (led_pattern << 3) | 0b111;
+    }
+    has_mark_in_current_char = 1;
+    consecutive_submits = 0;
+
+    update_io_leds();
+}
+
+void handle_submit(void) {
+    if (consecutive_submits > 1) {
+        // nothng
+    } else if (consecutive_submits == 1) {
+        led_pattern = led_pattern << 2;
+        consecutive_submits++;
+        has_mark_in_current_char = 0;
+    } else if (consecutive_submits == 0) {
+        led_pattern = led_pattern << 3;
+        consecutive_submits++;
+        has_mark_in_current_char = 0;
+    }
+
+    update_io_leds();
+}
+
+// UI Interface effects
+void update_io_leds(void) {
+    // port A = lower half of led
+    PORTA = (PORTA & 0xF0) | (led_pattern & 0x0F);
+    // port B = uppper half of led
+    PORTD = (PORTD & 0b11000011) | ((led_pattern & 0xF0) >> 2);
 }
