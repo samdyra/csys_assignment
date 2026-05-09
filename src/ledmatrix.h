@@ -17,9 +17,12 @@
 #define MATRIX_NUM_COLUMNS 16
 #define MATRIX_NUM_ROWS 8
 
+#define GLYPH_WIDTH 3
+
 // Colour definitions
 #define COLOUR_BLACK 0x00
 #define COLOUR_GREEN 0xF0
+#define COLOUR_RED 0x0F
 
 // shift dir in led matrix (0000udlr)
 #define SHIFT_LEFT 0b10

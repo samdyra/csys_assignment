@@ -36,6 +36,17 @@ static uint8_t current_char_encoding = 0b1;
 // store the latest created char after user submit
 static char latest_generated_char = 0;
 
+/* TIMER */
+static volatile uint32_t ms_counter = 0;
+
+/* IO LED ANIMATION QUEUE */
+#define TICK_QUEUE_SIZE 32
+static uint8_t tick_queue[TICK_QUEUE_SIZE];
+static uint8_t queue_head = 0;
+static uint8_t queue_tail = 0;
+static uint8_t queue_count = 0;
+static uint32_t last_animation = 0;
+
 /* Internal Function Declarations */
 void initialise_hardware(void);
 void start_morse(void);
@@ -47,6 +58,9 @@ void handle_dash(void);
 void handle_submit(void);
 void update_io_leds(void);
 void update_led_matrix(void);
+void update_incomplete_char(void);
+void enqueue_tick(uint8_t tick);
+uint8_t dequeue_tick(void);
 
 int main(void) {
     initialise_hardware();
@@ -54,17 +68,29 @@ int main(void) {
     start_morse();
 }
 
-void initialise_hardware(void) {
-    spi_setup_master(128);  // init LED matrix
-    // Setup serial port for 19200 baud communication
-    init_serial_stdio(19200);
-    // setup buttons for io board led
+void initialize_timer_0(void) {
+    TIMSK0 = (1 << OCIE0A);              // enable compare match interrupt
+    TCCR0A = (1 << WGM01);               // ctc mode
+    TCCR0B = (1 << CS02) | (1 << CS00);  // prescaler 1024
+    OCR0A = 77;                          // 78 cycles × 128us = 9.984ms ≈ 10ms
+}
+
+void initialize_button_inputs(void) {
     DDRB &= ~((1 << DDRB0) | (1 << DDRB1) | (1 << DDRB2));  // clear b0, b1, b2 to be inputs
     DDRA |= (1 << DDRA0) | (1 << DDRA1) | (1 << DDRA2) |
             (1 << DDRA3);  // set a0, a1, a2, a3 to be outputs
     DDRD |= (1 << DDRD5) | (1 << DDRD4) | (1 << DDRD3) |
             (1 << DDRD2);  // set d3, d4, d5, d2 to be outputs
-    sei();                 // enable global interrupts
+}
+
+void initialise_hardware(void) {
+    spi_setup_master(128);  // init LED matrix
+    // Setup serial port for 19200 baud communication
+    init_serial_stdio(19200);
+
+    initialize_button_inputs();
+    initialize_timer_0();
+    sei();  // enable global interrupts
 }
 
 void start_splash_screen(void) {
@@ -94,6 +120,10 @@ void start_morse(void) {
     while (1) {
         // Handle any button or key inputs
         handle_inputs();
+
+        if (ms_counter - last_animation >= 100) {
+            update_io_leds();
+        }
     }
     // should never reach
 }
@@ -129,80 +159,134 @@ void handle_button_input(void) {
 
 // B0
 void handle_dot(void) {
-    // uq io board led handling
+    // dot input in UQ IO LED
     if (has_mark_in_current_char) {
-        led_pattern = (led_pattern << 2) | 0b01;
+        enqueue_tick(0);
+        enqueue_tick(1);
     } else {
-        led_pattern = (led_pattern << 1) | 0b01;
+        enqueue_tick(1);
+
+        has_mark_in_current_char = 1;
     }
-    has_mark_in_current_char = 1;
+
     consecutive_submits = 0;
 
     update_io_leds();
 
-    // led matrix handling
-    current_char_encoding = current_char_encoding << 1 | 0b0;
+    // led matrix handling on click dot
+    current_char_encoding = (current_char_encoding << 1) | 0b0;
+    update_incomplete_char();
 }
 
 // B1
 void handle_dash(void) {
-    // uq io board led handling
+    // dash input in UQ IO LED
     if (has_mark_in_current_char) {
-        led_pattern = (led_pattern << 4) | 0b111;
+        enqueue_tick(0);
+        enqueue_tick(1);
+        enqueue_tick(1);
+        enqueue_tick(1);
     } else {
-        led_pattern = (led_pattern << 3) | 0b111;
+        enqueue_tick(1);
+        enqueue_tick(1);
+        enqueue_tick(1);
+
+        has_mark_in_current_char = 1;
     }
-    has_mark_in_current_char = 1;
+
     consecutive_submits = 0;
 
     update_io_leds();
 
-    // led matrix handling
-    current_char_encoding = current_char_encoding << 1 | 0b1;
+    // led matrix handling on click dash
+    current_char_encoding = (current_char_encoding << 1) | 0b1;
+    update_incomplete_char();
 }
 
 // B2
 void handle_submit(void) {
-    // UQ IO LED Board handler
-    if (consecutive_submits > 1) {
-        // nothng
-        return;
+    // submit input in UQ IO LED
+    if (consecutive_submits > 1) return;  // if its 2, do nothng
+
+    if (consecutive_submits == 0) {
+        enqueue_tick(0);
+        enqueue_tick(0);
+        enqueue_tick(0);
     } else if (consecutive_submits == 1) {
-        led_pattern = led_pattern << 2;
-        consecutive_submits++;
-        has_mark_in_current_char = 0;
-    } else if (consecutive_submits == 0) {
-        led_pattern = led_pattern << 3;
-        consecutive_submits++;
-        has_mark_in_current_char = 0;
+        enqueue_tick(0);
+        enqueue_tick(0);
     }
+
+    consecutive_submits++;
+    has_mark_in_current_char = 0;
 
     update_io_leds();
 
-    // LED Matrix handler
+    // led matrix handler on submit
     latest_generated_char = morse_to_char(current_char_encoding);
-    current_char_encoding = 0b1;  // reset for next char
+    current_char_encoding = 0b1;
     update_led_matrix();
 }
 
+// on compare match timer 0
+ISR(TIMER0_COMPA_vect) { ms_counter += 10; }
+
 /* UI INTERFACE VIEWS */
 void update_io_leds(void) {
+    if (queue_count == 0) return;  // nothing to animate
+
+    uint8_t tick = dequeue_tick();
+    led_pattern = (led_pattern << 1) | tick;
     // port A = lower half of led
     PORTA = (PORTA & 0xF0) | (led_pattern & 0x0F);
     // port B = uppper half of led
     PORTD = (PORTD & 0b11000011) | ((led_pattern & 0xF0) >> 2);
+
+    last_animation = ms_counter;
 }
 
 void update_led_matrix(void) {
     if (latest_generated_char != 0) {  // skip if nothing submitted yet
+        draw_small_char(latest_generated_char, MATRIX_NUM_COLUMNS - GLYPH_WIDTH, COLOUR_GREEN);
+
         // shift left 4 bits
         ledmatrix_shift_display(SHIFT_LEFT);
         ledmatrix_shift_display(SHIFT_LEFT);
         ledmatrix_shift_display(SHIFT_LEFT);
         ledmatrix_shift_display(SHIFT_LEFT);
-
-        uint8_t GLYPH_WIDTH = 3;
-
-        draw_small_char(latest_generated_char, MATRIX_NUM_COLUMNS - GLYPH_WIDTH, COLOUR_GREEN);
     }
+}
+
+void update_incomplete_char(void) {
+    char incomplete_char = morse_to_char(current_char_encoding);
+    draw_small_char(incomplete_char, MATRIX_NUM_COLUMNS - GLYPH_WIDTH, COLOUR_RED);
+}
+
+/* HELPER FUNCTIONS */
+void enqueue_tick(uint8_t tick) {
+    if (queue_count < TICK_QUEUE_SIZE) {
+        // write the new tick at the tail position.
+        // tick & 1 ensures only store 1 bit 0 or 1, never accidentally larger
+        tick_queue[queue_tail] = tick & 1;
+
+        // make the array circular
+        // Advance tail by 1, wrapping back to 0 if it would go past the end.
+        //  ex: queue_tail = 30 → (30+1) % 32 = 31    (normal step)
+        // exL  queue_tail = 31 → (31+1) % 32 = 0     (wraps to start)
+        queue_tail = (queue_tail + 1) % TICK_QUEUE_SIZE;
+
+        queue_count++;
+    }
+}
+
+uint8_t dequeue_tick(void) {
+    // Read the oldest tick (head).
+    uint8_t tick = tick_queue[queue_head];
+
+    // Advance head by 1, wrapping back to 0 the same way as tail.
+    // head will chase tail, the range of head and tail = queue count
+    queue_head = (queue_head + 1) % TICK_QUEUE_SIZE;
+
+    queue_count--;
+    return tick;
 }
