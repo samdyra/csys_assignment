@@ -2,10 +2,12 @@
  * display.h
  *
  * Author: Ryan Wang
- */ 
+ */
 
 #ifndef DISPLAY_H_
 #define DISPLAY_H_
+
+#include <stdint.h>
 
 /*
  * display a start screen
@@ -17,4 +19,4 @@ void start_splash_display(void);
  */
 void draw_small_char(char character, uint8_t x_position, uint8_t colour);
 
-#endif 
+#endif

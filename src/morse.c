@@ -46,6 +46,7 @@ void handle_dot(void);
 void handle_dash(void);
 void handle_submit(void);
 void update_io_leds(void);
+void update_led_matrix(void);
 
 int main(void) {
     initialise_hardware();
@@ -165,6 +166,7 @@ void handle_submit(void) {
     // UQ IO LED Board handler
     if (consecutive_submits > 1) {
         // nothng
+        return;
     } else if (consecutive_submits == 1) {
         led_pattern = led_pattern << 2;
         consecutive_submits++;

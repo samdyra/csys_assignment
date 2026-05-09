@@ -142,21 +142,25 @@ const uint8_t font_large[38][5] = {
 };
 
 void draw_small_char(char character, uint8_t x_position, uint8_t colour) {
-    uint8_t column_colour_data[MATRIX_NUM_ROWS];
-    uint8_t col_data;
-    ledmatrix_clear();  // start by clearing the LED matrix
-    for (uint8_t col = 0; col < MATRIX_NUM_COLUMNS; col++) {
-        col_data = splash_display[col];
-        // go through the bottom 8 bits and set any to be the correct colour
-        for (uint8_t i = 0; i < MATRIX_NUM_ROWS; i++) {
-            if (col_data & 0x01) {
-                column_colour_data[i] = COLOUR_GREEN;
+    uint8_t
+        color_result[MATRIX_NUM_ROWS];  // init: { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+    for (uint8_t col = 0; col < 3; col++)  // 3 col for small font
+    {
+        uint8_t col_data = get_small_glyph_column(character, col);  // ex: 0b01000011
+
+        // traverse the 8 bit
+        for (uint8_t row = 0; row < MATRIX_NUM_ROWS; row++) {
+            if (col_data & 0x01) {  // get lsb
+                color_result[row] = colour;
             } else {
-                column_colour_data[i] = COLOUR_BLACK;
+                color_result[row] = COLOUR_BLACK;
             }
-            col_data >>= 1;
+            col_data = col_data >> 1;
         }
-        ledmatrix_update_column(col, column_colour_data);
+
+        // send data col to x position in led matrix
+        ledmatrix_update_column(x_position + col, color_result);
     }
 }
 
