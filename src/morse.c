@@ -35,6 +35,10 @@ static uint8_t consecutive_submits = 0;
 static uint8_t current_char_encoding = 0b1;
 // store the latest created char after user submit
 static char latest_generated_char = 0;
+// store all pending led matrix left shifts
+static uint8_t pending_matrix_shifts = 0;
+// the time of last time the matrix shift
+static uint32_t last_time_matrix_shift = 0;
 
 /* TIMER */
 static volatile uint32_t ms_counter = 0;
@@ -45,7 +49,7 @@ static uint8_t tick_queue[TICK_QUEUE_SIZE];
 static uint8_t queue_head = 0;
 static uint8_t queue_tail = 0;
 static uint8_t queue_count = 0;
-static uint32_t last_animation = 0;
+static uint32_t last_time_io_led_tick = 0;
 
 /* Internal Function Declarations */
 void initialise_hardware(void);
@@ -61,6 +65,7 @@ void update_led_matrix(void);
 void update_incomplete_char(void);
 void enqueue_tick(uint8_t tick);
 uint8_t dequeue_tick(void);
+void snap_matrix_animation(void);
 
 int main(void) {
     initialise_hardware();
@@ -97,7 +102,7 @@ void start_splash_screen(void) {
     // draw sigil on LED matrix
     start_splash_display();
     move_terminal_cursor(10, 6);
-    printf("CSSE%d AVR Project", 7210);  // change if masters student
+    printf("CSSE%d AVR Project", 7201);  // change if masters student
     move_terminal_cursor(10, 8);
     printf("\"Morse Code Emulator\"");
     move_terminal_cursor(10, 10);
@@ -121,8 +126,18 @@ void start_morse(void) {
         // Handle any button or key inputs
         handle_inputs();
 
-        if (ms_counter - last_animation >= 100) {
+        // animate uq io board leds
+        if (ms_counter - last_time_io_led_tick >= 100) {
             update_io_leds();
+        }
+
+        // animate led matrix
+        if (ms_counter - last_time_matrix_shift >= 100) {
+            if (pending_matrix_shifts > 0) {
+                ledmatrix_shift_display(SHIFT_LEFT);
+                pending_matrix_shifts--;
+                last_time_matrix_shift = ms_counter;
+            }
         }
     }
     // should never reach
@@ -242,22 +257,20 @@ void update_io_leds(void) {
     // port B = uppper half of led
     PORTD = (PORTD & 0b11000011) | ((led_pattern & 0xF0) >> 2);
 
-    last_animation = ms_counter;
+    last_time_io_led_tick = ms_counter;
 }
 
 void update_led_matrix(void) {
+    snap_matrix_animation();           // finish previous animation if any
     if (latest_generated_char != 0) {  // skip if nothing submitted yet
         draw_small_char(latest_generated_char, MATRIX_NUM_COLUMNS - GLYPH_WIDTH, COLOUR_GREEN);
-
-        // shift left 4 bits
-        ledmatrix_shift_display(SHIFT_LEFT);
-        ledmatrix_shift_display(SHIFT_LEFT);
-        ledmatrix_shift_display(SHIFT_LEFT);
-        ledmatrix_shift_display(SHIFT_LEFT);
+        pending_matrix_shifts = 4;
+        last_time_matrix_shift = ms_counter;
     }
 }
 
 void update_incomplete_char(void) {
+    snap_matrix_animation();  // finish previous animation if any
     char incomplete_char = morse_to_char(current_char_encoding);
     draw_small_char(incomplete_char, MATRIX_NUM_COLUMNS - GLYPH_WIDTH, COLOUR_RED);
 }
@@ -289,4 +302,13 @@ uint8_t dequeue_tick(void) {
 
     queue_count--;
     return tick;
+}
+
+// finish in progress led matrix animation to its final state.
+// used before drawing a new character to keep the right edge clean.
+void snap_matrix_animation(void) {
+    while (pending_matrix_shifts > 0) {
+        ledmatrix_shift_display(SHIFT_LEFT);
+        pending_matrix_shifts--;
+    }
 }
