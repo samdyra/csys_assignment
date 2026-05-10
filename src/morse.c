@@ -42,13 +42,13 @@ static uint8_t pending_matrix_shifts = 0;
 static uint32_t last_time_matrix_shift = 0;
 
 /* TIMER */
-static volatile uint32_t ms_counter = 0;
+static volatile uint32_t shared_counter_0 = 0;
 
 /* SEVEN SEGMENT DISPLAY */
 // marks in in progress char
-static volatile uint8_t mark_count = 0;
+static volatile uint8_t seven_seg_mark_count = 0;
 // total chars submitted
-static volatile uint8_t submitted_count = 0;
+static volatile uint8_t seven_seg_submitted_count = 0;
 
 /* IO LED ANIMATION QUEUE */
 #define TICK_QUEUE_SIZE 32
@@ -134,16 +134,16 @@ void start_morse(void) {
         handle_inputs();
 
         // animate uq io board leds
-        if (ms_counter - last_time_io_led_tick >= 100) {
+        if (shared_counter_0 - last_time_io_led_tick >= 100) {
             update_io_leds();
         }
 
         // animate led matrix
-        if (ms_counter - last_time_matrix_shift >= 100) {
+        if (shared_counter_0 - last_time_matrix_shift >= 100) {
             if (pending_matrix_shifts > 0) {
                 ledmatrix_shift_display(SHIFT_LEFT);
                 pending_matrix_shifts--;
-                last_time_matrix_shift = ms_counter;
+                last_time_matrix_shift = shared_counter_0;
             }
         }
     }
@@ -200,7 +200,7 @@ void handle_dot(void) {
     update_incomplete_char();
 
     // seven segment display handling
-    mark_count++;
+    seven_seg_mark_count++;
 }
 
 // B1
@@ -228,7 +228,7 @@ void handle_dash(void) {
     update_incomplete_char();
 
     // seven segment display handling
-    mark_count++;
+    seven_seg_mark_count++;
 }
 
 // B2
@@ -256,14 +256,14 @@ void handle_submit(void) {
     update_led_matrix();
 
     // seven segment display handling
-    submitted_count++;
-    mark_count = 0;
+    seven_seg_submitted_count++;
+    seven_seg_mark_count = 0;
 }
 
-// on compare match timer 0
+// on compare match timer 0 per 2ms
 ISR(TIMER0_COMPA_vect) {
-    ms_counter += 2;
-    seven_segment_step(mark_count, submitted_count);
+    shared_counter_0 += 2;
+    seven_segment_step(seven_seg_mark_count, seven_seg_submitted_count);
 }
 
 /* UI INTERFACE VIEWS */
@@ -277,7 +277,7 @@ void update_io_leds(void) {
     // port B = uppper half of led
     PORTD = (PORTD & 0b11000011) | ((led_pattern & 0xF0) >> 2);
 
-    last_time_io_led_tick = ms_counter;
+    last_time_io_led_tick = shared_counter_0;
 }
 
 void update_led_matrix(void) {
@@ -285,7 +285,7 @@ void update_led_matrix(void) {
     if (latest_generated_char != 0) {  // skip if nothing submitted yet
         draw_small_char(latest_generated_char, MATRIX_NUM_COLUMNS - GLYPH_WIDTH, COLOUR_GREEN);
         pending_matrix_shifts = 4;
-        last_time_matrix_shift = ms_counter;
+        last_time_matrix_shift = shared_counter_0;
     }
 }
 
