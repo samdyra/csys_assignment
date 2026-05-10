@@ -36,4 +36,9 @@ void ledmatrix_update_column(uint8_t x, uint8_t pixels[MATRIX_NUM_ROWS]);
 void ledmatrix_clear(void);
 void ledmatrix_shift_display(uint8_t direction);
 
+void render_led_matrix(void);
+void handle_dot_input_led_matrix(void);
+void handle_dash_input_led_matrix(void);
+void handle_submit_input_led_matrix(void);
+
 #endif /* LEDMATRIX_H_ */

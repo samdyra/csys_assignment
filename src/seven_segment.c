@@ -13,6 +13,26 @@
 #define SEG_G (1 << 6)
 #define SEG_DP (1 << 7)
 
+// MODELS
+// marks in in progress char
+static volatile uint8_t seven_seg_mark_count = 0;
+// total chars submitted
+static volatile uint8_t seven_seg_submitted_count = 0;
+
+// VIEWS
+void render_seven_segment(void) {
+    seven_segment_step(seven_seg_mark_count, seven_seg_submitted_count);
+}
+
+// CONTROLLERS
+void handle_dot_input_in_seven_segment(void) { seven_seg_mark_count++; }
+void handle_dash_input_in_seven_segment(void) { seven_seg_mark_count++; }
+void handle_submit_input_in_seven_segment(void) {
+    seven_seg_submitted_count++;
+    seven_seg_mark_count = 0;
+}
+
+// UTILS
 static const uint8_t seg_patterns[16] = {
     SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F,          // 0
     SEG_B | SEG_C,                                          // 1

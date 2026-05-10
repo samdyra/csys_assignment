@@ -13,4 +13,9 @@ void seven_segment_init(void);
  */
 void seven_segment_step(uint8_t mark_count, uint8_t submitted_count);
 
+void render_seven_segment(void);
+void handle_dot_input_in_seven_segment(void);
+void handle_dash_input_in_seven_segment(void);
+void handle_submit_input_in_seven_segment(void);
+
 #endif
