@@ -18,6 +18,7 @@
 #include "encoding.h"
 #include "ledmatrix.h"
 #include "serialio.h"
+#include "seven_segment.h"
 #include "terminalio.h"
 
 // MODELS
@@ -42,6 +43,12 @@ static uint32_t last_time_matrix_shift = 0;
 
 /* TIMER */
 static volatile uint32_t ms_counter = 0;
+
+/* SEVEN SEGMENT DISPLAY */
+// marks in in progress char
+static volatile uint8_t mark_count = 0;
+// total chars submitted
+static volatile uint8_t submitted_count = 0;
 
 /* IO LED ANIMATION QUEUE */
 #define TICK_QUEUE_SIZE 32
@@ -76,8 +83,8 @@ int main(void) {
 void initialize_timer_0(void) {
     TIMSK0 = (1 << OCIE0A);              // enable compare match interrupt
     TCCR0A = (1 << WGM01);               // ctc mode
-    TCCR0B = (1 << CS02) | (1 << CS00);  // prescaler 1024
-    OCR0A = 77;                          // 78 cycles × 128us = 9.984ms ≈ 10ms
+    TCCR0B = (1 << CS01) | (1 << CS00);  // prescaler 64
+    OCR0A = 249;                         // 250 ticks × 8us = 2ms
 }
 
 void initialize_button_inputs(void) {
@@ -92,7 +99,7 @@ void initialise_hardware(void) {
     spi_setup_master(128);  // init LED matrix
     // Setup serial port for 19200 baud communication
     init_serial_stdio(19200);
-
+    seven_segment_init();
     initialize_button_inputs();
     initialize_timer_0();
     sei();  // enable global interrupts
@@ -191,6 +198,9 @@ void handle_dot(void) {
     // led matrix handling on click dot
     current_char_encoding = (current_char_encoding << 1) | 0b0;
     update_incomplete_char();
+
+    // seven segment display handling
+    mark_count++;
 }
 
 // B1
@@ -216,6 +226,9 @@ void handle_dash(void) {
     // led matrix handling on click dash
     current_char_encoding = (current_char_encoding << 1) | 0b1;
     update_incomplete_char();
+
+    // seven segment display handling
+    mark_count++;
 }
 
 // B2
@@ -241,10 +254,17 @@ void handle_submit(void) {
     latest_generated_char = morse_to_char(current_char_encoding);
     current_char_encoding = 0b1;
     update_led_matrix();
+
+    // seven segment display handling
+    submitted_count++;
+    mark_count = 0;
 }
 
 // on compare match timer 0
-ISR(TIMER0_COMPA_vect) { ms_counter += 10; }
+ISR(TIMER0_COMPA_vect) {
+    ms_counter += 2;
+    seven_segment_step(mark_count, submitted_count);
+}
 
 /* UI INTERFACE VIEWS */
 void update_io_leds(void) {
