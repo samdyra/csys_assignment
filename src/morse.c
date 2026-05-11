@@ -42,6 +42,7 @@ void handle_dot(void);
 void handle_dash(void);
 void handle_submit(void);
 void initialize_timer_0(void);
+void handle_char_from_serial(char c);
 
 // initialize timer and button inputs
 void initialize_timer_0(void) {
@@ -99,6 +100,9 @@ void main_loop(void) {
         // handle any button press/hold
         listen_button_input();
 
+        // handle any serial input
+        listen_serial_input();
+
         // animate uq io board leds
         render_uq_io_board_led();
 
@@ -115,7 +119,6 @@ ISR(TIMER0_COMPA_vect) {
 
 /* EVENT DISPATCHERS */
 
-// B0
 void handle_dot(void) {
     handle_dot_input_in_uq_io_led(has_mark_in_current_char);
     handle_dot_input_led_matrix();
@@ -125,7 +128,6 @@ void handle_dot(void) {
     consecutive_submits = 0;
 }
 
-// B1
 void handle_dash(void) {
     handle_dash_input_in_uq_io_led(has_mark_in_current_char);
     handle_dash_input_led_matrix();
@@ -135,7 +137,6 @@ void handle_dash(void) {
     consecutive_submits = 0;
 }
 
-// B2
 void handle_submit(void) {
     // early return for 3rd+ submit
     if (consecutive_submits > 1) return;
@@ -146,4 +147,33 @@ void handle_submit(void) {
 
     consecutive_submits++;
     has_mark_in_current_char = 0;
+}
+
+void handle_char_from_serial(char character) {
+    // convert lowercase to uppercase
+    if (character >= 'a' && character <= 'z') {
+        character = character - 'a' + 'A';
+    }
+
+    uint8_t encoding = char_to_morse(character);
+    if (encoding == 0) return;  // invalid character do nothing
+
+    // suppress a serial space if we're already at the space-displayed state
+    if (character == ' ' && consecutive_submits >= 2) return;
+
+    // echo to terminal
+    printf("%c", character);
+
+    // dispatch to interfaces
+    handle_serial_char_in_uq_io_led(encoding);
+    handle_serial_char_led_matrix(character);
+    handle_serial_char_in_seven_segment();
+
+    has_mark_in_current_char = 0;  // reset shared state, any mark (if any) is abandoned
+
+    if (character == ' ') {
+        consecutive_submits = 2;  // serial space = "the space happened" already
+    } else {
+        consecutive_submits = 1;  // serial char also acts as a "submit" one more press = space
+    }
 }

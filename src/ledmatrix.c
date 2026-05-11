@@ -20,7 +20,7 @@ static void snap_matrix_animation(void);
 // access morse.c's timer counter
 extern volatile uint32_t shared_counter_0;
 // store an in progress char creation (0 for dot, 1 for dash) (see morse_to_char)
-static uint8_t current_char_encoding = 0b1;
+static uint8_t current_char_encoding = 0b1;  // all char encoding start with 1
 // store the latest created char after user submit
 static char latest_generated_char = 0;
 // store all pending led matrix left shifts
@@ -81,6 +81,15 @@ void handle_submit_input_led_matrix(void) {
     latest_generated_char = morse_to_char(current_char_encoding);
     current_char_encoding = 0b1;
     update_led_matrix();
+}
+
+void handle_serial_char_led_matrix(char c) {
+    snap_matrix_animation();      // finish any pending animation
+    current_char_encoding = 0b1;  // reset in-progress encoding (abandon button input)
+
+    draw_small_char(c, MATRIX_NUM_COLUMNS - GLYPH_WIDTH, COLOUR_YELLOW);
+    pending_matrix_shifts = 4;
+    last_time_matrix_shift = shared_counter_0;
 }
 
 // UTILS

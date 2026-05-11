@@ -2,6 +2,9 @@
 
 #include <avr/io.h>
 #include <stdint.h>
+#include <stdio.h>
+
+#include "serialio.h"
 
 /* Internal Function Declarations */
 static void handle_press_button_async(void);
@@ -14,6 +17,7 @@ extern volatile uint32_t shared_counter_0;
 extern void handle_dot(void);
 extern void handle_dash(void);
 extern void handle_submit(void);
+extern void handle_char_from_serial(char c);
 
 // Sync mode duration thresholds (ms)
 #define SYNC_DOT_DASH_THRESHOLD 200
@@ -29,6 +33,13 @@ void listen_button_input(void) {
     } else {
         handle_press_button_async();
     }
+}
+
+void listen_serial_input(void) {
+    if (!serial_input_available()) return;
+
+    int c_int = fgetc(stdin);              // 0-255 or EOF (-1)
+    handle_char_from_serial((char)c_int);  // safe to cast since we already checked availability
 }
 
 // CONTROLLER

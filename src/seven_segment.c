@@ -31,6 +31,10 @@ void handle_submit_input_in_seven_segment(void) {
     seven_seg_submitted_count++;
     seven_seg_mark_count = 0;
 }
+void handle_serial_char_in_seven_segment(void) {
+    seven_seg_submitted_count++;
+    seven_seg_mark_count = 0;  // reset (in-progress char is abandoned)
+}
 
 // UTILS
 static const uint8_t seg_patterns[16] = {

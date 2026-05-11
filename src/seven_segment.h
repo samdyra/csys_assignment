@@ -17,5 +17,6 @@ void render_seven_segment(void);
 void handle_dot_input_in_seven_segment(void);
 void handle_dash_input_in_seven_segment(void);
 void handle_submit_input_in_seven_segment(void);
+void handle_serial_char_in_seven_segment(void);
 
 #endif

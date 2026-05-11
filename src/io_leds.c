@@ -46,7 +46,7 @@ static void update_io_leds(void) {
 void handle_dot_input_in_uq_io_led(uint8_t has_mark_in_current_char) {
     // dot input in UQ IO LED
     if (has_mark_in_current_char) {
-        enqueue_tick(0);
+        enqueue_tick(0);  // inter-mark gap
         enqueue_tick(1);
     } else {
         enqueue_tick(1);
@@ -58,7 +58,7 @@ void handle_dot_input_in_uq_io_led(uint8_t has_mark_in_current_char) {
 void handle_dash_input_in_uq_io_led(uint8_t has_mark_in_current_char) {
     // dash input in UQ IO LED
     if (has_mark_in_current_char) {
-        enqueue_tick(0);
+        enqueue_tick(0);  // inter-mark gap
         enqueue_tick(1);
         enqueue_tick(1);
         enqueue_tick(1);
@@ -85,6 +85,41 @@ void handle_submit_input_in_uq_io_led(uint8_t consecutive_submits) {
     }
 
     update_io_leds();
+}
+
+void handle_serial_char_in_uq_io_led(uint8_t encoding) {
+    uint8_t mask = 0b10000000;  // start with mask = 0b10000000 (bit 7)
+    // loop through mask, until find 1
+    while (mask && !(encoding & mask)) {  // encoding ex: 0b0010000
+        mask = mask >> 1;                 // shift right until we hit a 1 or mask = 0
+    }
+
+    if (mask == 0) return;  // if nothing was set (all 0), do nothing
+
+    uint8_t actual_data = mask >> 1;  // get the actual marks (after first 1)
+
+    // iterate actual data (a bit after the first 1)
+    uint8_t is_first = 1;
+    while (actual_data) {
+        if (!is_first) {
+            enqueue_tick(0);  // inter-mark gap
+        }
+
+        if (encoding & actual_data) {
+            // dash: 3 ON beats
+            enqueue_tick(1);
+            enqueue_tick(1);
+            enqueue_tick(1);
+        } else {
+            // dot: 1 ON beat
+            enqueue_tick(1);
+        }
+
+        is_first = 0;
+        actual_data >>= 1;
+    }
+
+    update_io_leds();  // immediate first beat
 }
 
 // UTILS

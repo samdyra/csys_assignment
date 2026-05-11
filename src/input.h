@@ -3,5 +3,6 @@
 
 void input_init(void);
 void input_poll(void);
+void listen_serial_input(void);
 
 #endif
