@@ -14,6 +14,7 @@
 
 #include "display.h"
 #include "encoding.h"
+#include "input.h"
 #include "io_leds.h"
 #include "ledmatrix.h"
 #include "serialio.h"
@@ -37,12 +38,9 @@ void initialise_hardware(void);
 void start_morse(void);
 void start_splash_screen(void);
 void main_loop(void);
-void handle_inputs(void);
-void handle_button_input(void);
 void handle_dot(void);
 void handle_dash(void);
 void handle_submit(void);
-void initialize_button_inputs(void);
 void initialize_timer_0(void);
 
 // initialize timer and button inputs
@@ -51,10 +49,6 @@ void initialize_timer_0(void) {
     TCCR0A = (1 << WGM01);               // ctc mode
     TCCR0B = (1 << CS01) | (1 << CS00);  // prescaler 64
     OCR0A = 249;                         // 250 ticks × 8us = 2ms
-}
-
-void initialize_button_inputs(void) {
-    DDRB &= ~((1 << DDRB0) | (1 << DDRB1) | (1 << DDRB2));  // clear b0, b1, b2 to be inputs
 }
 
 // run everything
@@ -68,7 +62,7 @@ void initialise_hardware(void) {
     spi_setup_master(128);  // init LED matrix
     // Setup serial port for 19200 baud communication
     init_serial_stdio(19200);
-    initialize_button_inputs();
+    input_init();
     initialize_uq_io_board_led();
     seven_segment_init();
     initialize_timer_0();
@@ -102,8 +96,8 @@ void start_morse(void) {
 // main runtime
 void main_loop(void) {
     while (1) {
-        // Handle any button or key inputs
-        handle_inputs();
+        // handle any button press/hold
+        listen_button_input();
 
         // animate uq io board leds
         render_uq_io_board_led();
@@ -119,20 +113,7 @@ ISR(TIMER0_COMPA_vect) {
     render_seven_segment();
 }
 
-void handle_inputs(void) { handle_button_input(); }
-
-/* EVENT LISTENERS */
-// IO Button Event listeners
-void handle_button_input(void) {
-    static uint8_t prev = 0b000;
-    uint8_t curr = PINB & ((1 << PINB2) | (1 << PINB1) | (1 << PINB0));
-    uint8_t edges = curr & ~prev;
-    prev = curr;
-
-    if (edges & (1 << 0)) handle_dot();
-    if (edges & (1 << 1)) handle_dash();
-    if (edges & (1 << 2)) handle_submit();
-}
+/* EVENT DISPATCHERS */
 
 // B0
 void handle_dot(void) {

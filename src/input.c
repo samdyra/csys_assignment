@@ -1,0 +1,97 @@
+#include "input.h"
+
+#include <avr/io.h>
+#include <stdint.h>
+
+/* Internal Function Declarations */
+static void handle_press_button_async(void);
+static void handle_press_button_sync(void);
+
+// Access morse.c's timer counter
+extern volatile uint32_t shared_counter_0;
+
+// event handlers provided by morse.c
+extern void handle_dot(void);
+extern void handle_dash(void);
+extern void handle_submit(void);
+
+// Sync mode duration thresholds (ms)
+#define SYNC_DOT_DASH_THRESHOLD 200
+#define SYNC_FIRST_SUBMIT_AT 1000
+#define SYNC_SECOND_SUBMIT_AT 2000
+
+// Event listeners
+// read S0 to determine sync async mode
+void listen_button_input(void) {
+    // use sync mode if S0 is high
+    if (PINA & (1 << PINA4)) {
+        handle_press_button_sync();
+    } else {
+        handle_press_button_async();
+    }
+}
+
+// CONTROLLER
+// async mode: B0, B1, B2
+static void handle_press_button_async(void) {
+    static uint8_t prev = 0b000;
+    uint8_t curr = PINB & ((1 << PINB2) | (1 << PINB1) | (1 << PINB0));
+    uint8_t edges = curr & ~prev;
+    prev = curr;
+
+    if (edges & (1 << 0)) handle_dot();
+    if (edges & (1 << 1)) handle_dash();
+    if (edges & (1 << 2)) handle_submit();
+}
+
+// sync mode: B0 only
+static void handle_press_button_sync(void) {
+    static uint8_t was_pressed = 0;
+    static uint32_t press_started = 0;
+    static uint32_t release_started = 0;
+    // start at 2 (capped), no submits fired until user has pressed at least once.
+    static uint8_t submits_fired = 2;  // On first press we'll reset this to 0.
+
+    uint8_t is_pressed = (PINB & (1 << PINB0)) ? 1 : 0;
+    uint32_t current_time = shared_counter_0;
+
+    // rising edge: user just press (not released yet)
+    if (!was_pressed && is_pressed) {
+        press_started = current_time;
+        submits_fired = 0;  // a press cancels any pending submit timers
+    }
+
+    // falling edge: user release press (define dot or dash from press duration)
+    if (was_pressed && !is_pressed) {
+        uint32_t held_for = current_time - press_started;
+        if (held_for < SYNC_DOT_DASH_THRESHOLD) {
+            handle_dot();
+        } else {
+            handle_dash();
+        }
+        release_started = current_time;
+    }
+
+    was_pressed = is_pressed;
+
+    // while released (do nothing), watch for submit thresholds
+    if (!is_pressed && submits_fired < 2) {
+        uint32_t since_release = current_time - release_started;
+        if (submits_fired == 0 && since_release >= SYNC_FIRST_SUBMIT_AT) {
+            handle_submit();
+            submits_fired = 1;
+        } else if (submits_fired == 1 && since_release >= SYNC_SECOND_SUBMIT_AT) {
+            handle_submit();
+            submits_fired = 2;
+        }
+    }
+}
+
+// utils
+void input_init(void) {
+    // B0, B1, B2 as inputs
+    DDRB &= ~((1 << DDB0) | (1 << DDB1) | (1 << DDB2));
+
+    // S0 (PA4) elects async vs sync mode
+    DDRA &= ~(1 << DDA4);
+}
