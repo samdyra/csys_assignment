@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "encoding.h"
+#include "terminalio.h"
 
 /* Internal Function Declarations */
 static void redraw_incomplete(void);
@@ -25,6 +26,7 @@ void handle_dash_input_in_serial_output(void) {
 }
 
 void handle_submit_input_in_serial_output(void) {
+    set_display_attribute(FG_GREEN);
     char character = morse_to_char(current_char_encoding);
     print_uppercase(character);
     current_char_encoding = 0b1;
@@ -32,6 +34,7 @@ void handle_submit_input_in_serial_output(void) {
 
 // handle serial char for serial output (interface)
 void handle_serial_char_in_serial_output(char character) {
+    set_display_attribute(FG_YELLOW);
     printf("%c", character);      // print at current cursor position
     current_char_encoding = 0b1;  // erase in progress marks
 }
@@ -41,6 +44,7 @@ void handle_serial_char_in_serial_output(char character) {
 // prints the char then `\b` so cursor parks back on the char,
 // ready for the next mark to overwrite it.
 static void redraw_incomplete(void) {
+    set_display_attribute(FG_RED);
     char character = morse_to_char(current_char_encoding);
     print_uppercase(character);  // print and advance cursor
     printf("\b");                // move back cursor (the char is not completed yet)
