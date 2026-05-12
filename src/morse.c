@@ -17,6 +17,7 @@
 #include "input.h"
 #include "io_leds.h"
 #include "ledmatrix.h"
+#include "serial_output.h"
 #include "serialio.h"
 #include "seven_segment.h"
 #include "terminalio.h"
@@ -123,6 +124,7 @@ void handle_dot(void) {
     handle_dot_input_in_uq_io_led(has_mark_in_current_char);
     handle_dot_input_led_matrix();
     handle_dot_input_in_seven_segment();
+    handle_dot_input_in_serial_output();
 
     has_mark_in_current_char = 1;
     consecutive_submits = 0;
@@ -132,6 +134,7 @@ void handle_dash(void) {
     handle_dash_input_in_uq_io_led(has_mark_in_current_char);
     handle_dash_input_led_matrix();
     handle_dash_input_in_seven_segment();
+    handle_dash_input_in_serial_output();
 
     has_mark_in_current_char = 1;
     consecutive_submits = 0;
@@ -144,6 +147,7 @@ void handle_submit(void) {
     handle_submit_input_in_uq_io_led(consecutive_submits);
     handle_submit_input_led_matrix();
     handle_submit_input_in_seven_segment();
+    handle_submit_input_in_serial_output();
 
     consecutive_submits++;
     has_mark_in_current_char = 0;
@@ -161,13 +165,11 @@ void handle_char_from_serial(char character) {
     // suppress a serial space if we're already at the space-displayed state
     if (character == ' ' && consecutive_submits >= 2) return;
 
-    // echo to terminal
-    printf("%c", character);
-
     // dispatch to interfaces
     handle_serial_char_in_uq_io_led(encoding);
     handle_serial_char_led_matrix(character);
     handle_serial_char_in_seven_segment();
+    handle_serial_char_in_serial_output(character);
 
     has_mark_in_current_char = 0;  // reset shared state, any mark (if any) is abandoned
 
