@@ -17,7 +17,8 @@
 #define MATRIX_NUM_COLUMNS 16
 #define MATRIX_NUM_ROWS 8
 
-#define GLYPH_WIDTH 3
+#define GLYPH_WIDTH_SMALL 3
+#define GLYPH_WIDTH_LARGE 5
 
 // Colour definitions
 #define COLOUR_BLACK 0x00
@@ -42,5 +43,10 @@ void handle_dot_input_led_matrix(void);
 void handle_dash_input_led_matrix(void);
 void handle_submit_input_led_matrix(void);
 void handle_serial_char_led_matrix(char c);
+// 0 = small font, 1 = large font
+void set_font(uint8_t font);
+// redraw the LED matrix using whatever is in the char buffer.
+// call this after state changes (font switch, scroll, etc.)
+void redraw_matrix_from_buffer(void);
 
 #endif /* LEDMATRIX_H_ */

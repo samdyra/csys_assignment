@@ -109,6 +109,9 @@ void main_loop(void) {
 
         // animate led matrix
         render_led_matrix();
+
+        // listen switch input
+        listen_switch_input();
     }
 }
 

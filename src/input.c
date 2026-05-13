@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "ledmatrix.h"
 #include "serialio.h"
 
 /* Internal Function Declarations */
@@ -105,4 +106,16 @@ void input_init(void) {
 
     // S0 (PA4) elects async vs sync mode
     DDRA &= ~(1 << DDA4);
+    // S1 font selection
+    DDRA &= ~(1 << DDA5);
+}
+
+void listen_switch_input(void) {
+    static uint8_t last_s1 = 0;
+    uint8_t curr_s1 = (PINA & (1 << PINA5)) ? 1 : 0;
+    if (curr_s1 != last_s1) {
+        set_font(curr_s1);
+        redraw_matrix_from_buffer();
+        last_s1 = curr_s1;
+    }
 }

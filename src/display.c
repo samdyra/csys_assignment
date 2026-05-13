@@ -14,6 +14,7 @@
  * Gets a specified column of a small char glyph
  */
 uint8_t get_small_glyph_column(char c, uint8_t col);
+uint8_t get_large_glyph_column(char c, uint8_t col);
 
 /**
  * Maps an ASCII character to its corresponding font array index.
@@ -145,9 +146,31 @@ void draw_small_char(char character, uint8_t x_position, uint8_t colour) {
     uint8_t
         color_result[MATRIX_NUM_ROWS];  // init: { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-    for (uint8_t col = 0; col < 3; col++)  // 3 col for small font
+    for (uint8_t col = 0; col < GLYPH_WIDTH_SMALL; col++)  // 3 col for small font
     {
         uint8_t col_data = get_small_glyph_column(character, col);  // ex: 0b01000011
+
+        // traverse the 8 bit
+        for (uint8_t row = 0; row < MATRIX_NUM_ROWS; row++) {
+            if (col_data & 0x01) {  // get lsb
+                color_result[row] = colour;
+            } else {
+                color_result[row] = COLOUR_BLACK;
+            }
+            col_data = col_data >> 1;
+        }
+
+        // send data col to x position in led matrix
+        ledmatrix_update_column(x_position + col, color_result);
+    }
+}
+
+void draw_large_char(char character, uint8_t x_position, uint8_t colour) {
+    uint8_t color_result[MATRIX_NUM_ROWS];
+
+    for (uint8_t col = 0; col < GLYPH_WIDTH_LARGE; col++)  // 5 col for large font
+    {
+        uint8_t col_data = get_large_glyph_column(character, col);
 
         // traverse the 8 bit
         for (uint8_t row = 0; row < MATRIX_NUM_ROWS; row++) {
@@ -167,6 +190,11 @@ void draw_small_char(char character, uint8_t x_position, uint8_t colour) {
 uint8_t get_small_glyph_column(char c, uint8_t col) {
     uint8_t index = char_to_glyph_index(c);
     return font_small[index][col];
+}
+
+uint8_t get_large_glyph_column(char c, uint8_t col) {
+    uint8_t index = char_to_glyph_index(c);
+    return font_large[index][col];
 }
 
 uint8_t char_to_glyph_index(char c) {
