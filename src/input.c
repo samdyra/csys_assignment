@@ -4,7 +4,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "adc.h"
 #include "ledmatrix.h"
+#include "morse_led_display.h"
 #include "serialio.h"
 
 /* Internal Function Declarations */
@@ -36,11 +38,60 @@ void listen_button_input(void) {
     }
 }
 
+void listen_font_switch_input(void) {
+    static uint8_t last_s1 = 0;
+    uint8_t curr_s1 = (PINA & (1 << PINA5)) ? 1 : 0;
+    if (curr_s1 != last_s1) {
+        set_font(curr_s1);
+        redraw_matrix_from_buffer();
+        last_s1 = curr_s1;
+    }
+}
+
 void listen_serial_input(void) {
     if (!serial_input_available()) return;
 
     int c_int = fgetc(stdin);              // 0-255 or EOF (-1)
     handle_char_from_serial((char)c_int);  // safe to cast since we already checked availability
+}
+
+void listen_joystick_input(void) {
+    static uint32_t last_scroll_tick = 0;
+
+    uint8_t x = adc_read_channel_8bit(6);  // PA6 = joystick X
+
+    // deadzone around center (~128). ignore small tilts.
+    if (x >= 104 && x <= 152) return;
+
+    // determine direction and magnitude from center
+    uint8_t magnitude;
+    int8_t direction;  // +1 = into past (tilt right), -1 = toward present (tilt left)
+    if (x < 128) {
+        direction = -1;
+        magnitude = 128 - x;
+    } else {
+        direction = +1;
+        magnitude = x - 128;
+    }
+
+    // scroll interval depends on tilt magnitude (slight tilt = slow, full tilt = fast)
+    uint32_t interval_ms;
+    if (magnitude < 48) {
+        interval_ms = 200;  // slow
+    } else if (magnitude < 96) {
+        interval_ms = 100;  // medium
+    } else {
+        interval_ms = 50;  // fast
+    }
+
+    if (shared_counter_0 - last_scroll_tick < interval_ms) return;
+    last_scroll_tick = shared_counter_0;
+
+    if (direction > 0) {
+        scroll_one_col_into_past();
+    } else {
+        scroll_one_col_toward_present();
+    }
 }
 
 // CONTROLLER
@@ -108,14 +159,8 @@ void input_init(void) {
     DDRA &= ~(1 << DDA4);
     // S1 font selection
     DDRA &= ~(1 << DDA5);
-}
 
-void listen_switch_input(void) {
-    static uint8_t last_s1 = 0;
-    uint8_t curr_s1 = (PINA & (1 << PINA5)) ? 1 : 0;
-    if (curr_s1 != last_s1) {
-        set_font(curr_s1);
-        redraw_matrix_from_buffer();
-        last_s1 = curr_s1;
-    }
+    // scroll init
+    DDRA &= ~(1 << DDA6);
+    adc_init();
 }
