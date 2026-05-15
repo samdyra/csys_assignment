@@ -17,6 +17,7 @@
 #include "input.h"
 #include "io_leds.h"
 #include "ledmatrix.h"
+#include "morse_led_display.h"
 #include "serial_output.h"
 #include "serialio.h"
 #include "seven_segment.h"
@@ -108,10 +109,13 @@ void main_loop(void) {
         render_uq_io_board_led();
 
         // animate led matrix
-        render_led_matrix();
+        left_shift_led_matrix();
 
         // listen switch input
-        listen_switch_input();
+        listen_font_switch_input();
+
+        // listen joystick input
+        listen_joystick_input();
     }
 }
 
