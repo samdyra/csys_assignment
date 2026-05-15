@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "ledmatrix.h"
+#include "morse_led_display.h"
 
 /**
  * Gets a specified column of a small char glyph
@@ -142,48 +143,46 @@ const uint8_t font_large[38][5] = {
     {0b01000000, 0b10000000, 0b10001011, 0b10010000, 0b01100000}   // '?'
 };
 
-void draw_small_char(char character, uint8_t x_position, uint8_t colour) {
+// draws a single column of a small glyph onto a single column of the LED matrix.
+void draw_small_glyph_column(char c, uint8_t col_in_glyph, uint8_t colour, uint8_t matrix_col) {
+    uint8_t col_data = get_small_glyph_column(c, col_in_glyph);  // ex 0b01000000
     uint8_t
         color_result[MATRIX_NUM_ROWS];  // init: { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-
-    for (uint8_t col = 0; col < GLYPH_WIDTH_SMALL; col++)  // 3 col for small font
-    {
-        uint8_t col_data = get_small_glyph_column(character, col);  // ex: 0b01000011
-
-        // traverse the 8 bit
-        for (uint8_t row = 0; row < MATRIX_NUM_ROWS; row++) {
-            if (col_data & 0x01) {  // get lsb
-                color_result[row] = colour;
-            } else {
-                color_result[row] = COLOUR_BLACK;
-            }
-            col_data = col_data >> 1;
+    for (uint8_t row = 0; row < MATRIX_NUM_ROWS; row++) {
+        if (col_data & 0x01) {  // get lsb
+            color_result[row] = colour;
+        } else {
+            color_result[row] = COLOUR_BLACK;
         }
+        col_data = col_data >> 1;  // shift right to get the next left bit
+    }
+    ledmatrix_update_column(matrix_col, color_result);
+}
 
-        // send data col to x position in led matrix
-        ledmatrix_update_column(x_position + col, color_result);
+// draws a single column of a large glyph onto a single column of the LED matrix.
+void draw_large_glyph_column(char c, uint8_t col_in_glyph, uint8_t colour, uint8_t matrix_col) {
+    uint8_t col_data = get_large_glyph_column(c, col_in_glyph);
+    uint8_t color_result[MATRIX_NUM_ROWS];
+    for (uint8_t row = 0; row < MATRIX_NUM_ROWS; row++) {
+        if (col_data & 0x01) {
+            color_result[row] = colour;
+        } else {
+            color_result[row] = COLOUR_BLACK;
+        }
+        col_data >>= 1;
+    }
+    ledmatrix_update_column(matrix_col, color_result);
+}
+
+void draw_small_char(char character, uint8_t x_position, uint8_t colour) {
+    for (uint8_t col = 0; col < GLYPH_WIDTH_SMALL; col++) {
+        draw_small_glyph_column(character, col, colour, x_position + col);
     }
 }
 
 void draw_large_char(char character, uint8_t x_position, uint8_t colour) {
-    uint8_t color_result[MATRIX_NUM_ROWS];
-
-    for (uint8_t col = 0; col < GLYPH_WIDTH_LARGE; col++)  // 5 col for large font
-    {
-        uint8_t col_data = get_large_glyph_column(character, col);
-
-        // traverse the 8 bit
-        for (uint8_t row = 0; row < MATRIX_NUM_ROWS; row++) {
-            if (col_data & 0x01) {  // get lsb
-                color_result[row] = colour;
-            } else {
-                color_result[row] = COLOUR_BLACK;
-            }
-            col_data = col_data >> 1;
-        }
-
-        // send data col to x position in led matrix
-        ledmatrix_update_column(x_position + col, color_result);
+    for (uint8_t col = 0; col < GLYPH_WIDTH_LARGE; col++) {
+        draw_large_glyph_column(character, col, colour, x_position + col);
     }
 }
 

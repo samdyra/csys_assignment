@@ -2,6 +2,10 @@
  * ledmatrix.h
  *
  * Author: Peter Sutton, Ryan Wang
+ *
+ * Thin driver for the EECS LED matrix. Provides SPI primitives and
+ * matrix-wide constants/colours. Higher-level rendering logic lives
+ * in morse_led_display.c.
  */
 
 #ifndef LEDMATRIX_H_
@@ -11,42 +15,25 @@
 
 #include "spi.h"
 
-// The matrix has 16 columns (x ranges from 0 to 15, left to right) and
-// 8 rows (y ranges from 0 to 7, bottom to top) - as per the X,Y
-// coordinates marked on the board.
+// matrix dimensions
 #define MATRIX_NUM_COLUMNS 16
 #define MATRIX_NUM_ROWS 8
 
-#define GLYPH_WIDTH_SMALL 3
-#define GLYPH_WIDTH_LARGE 5
-
-// Colour definitions
+// colour definitions (upper nibble = green intensity, lower = red intensity)
 #define COLOUR_BLACK 0x00
 #define COLOUR_GREEN 0xF0
 #define COLOUR_RED 0x0F
 #define COLOUR_YELLOW 0xFF
 
-// shift dir in led matrix (0000udlr)
-#define SHIFT_LEFT 0b10
-#define SHIFT_RIGHT 0b01
+// shift directions for ledmatrix_shift_display (per LED matrix spec: 0000UDLR)
+#define SHIFT_UP 0x08
+#define SHIFT_DOWN 0x04
+#define SHIFT_LEFT 0x02
+#define SHIFT_RIGHT 0x01
 
-// Functions to update the display
-// For those functions which take an x or a y value, the value must be
-// valid or the request will be ignored. (i.e. 0 <= x < MATRIX_NUM_COLUMNS
-// and 0 <= y < MATRIX_NUM_ROWS)
+// hardware primitives
 void ledmatrix_update_column(uint8_t x, uint8_t pixels[MATRIX_NUM_ROWS]);
 void ledmatrix_clear(void);
 void ledmatrix_shift_display(uint8_t direction);
-
-void render_led_matrix(void);
-void handle_dot_input_led_matrix(void);
-void handle_dash_input_led_matrix(void);
-void handle_submit_input_led_matrix(void);
-void handle_serial_char_led_matrix(char c);
-// 0 = small font, 1 = large font
-void set_font(uint8_t font);
-// redraw the LED matrix using whatever is in the char buffer.
-// call this after state changes (font switch, scroll, etc.)
-void redraw_matrix_from_buffer(void);
 
 #endif /* LEDMATRIX_H_ */
