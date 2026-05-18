@@ -2,17 +2,18 @@
  * spi.h
  *
  * Author: Peter Sutton
- */ 
+ */
+
+#include <stdint.h>
 
 #ifndef SPI_H_
 #define SPI_H_
-
 
 // Set up SPI communication as a master.
 // clockdivider should be one of 2,4,8,16,32,64,128
 void spi_setup_master(uint8_t clockdivider);
 
-// Send and receive an SPI byte. This function will take at least 8 
+// Send and receive an SPI byte. This function will take at least 8
 // cycles of the divided clock (i.e. will busy wait).
 uint8_t spi_send_byte(uint8_t byte);
 

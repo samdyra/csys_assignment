@@ -2,10 +2,6 @@
  * ledmatrix.h
  *
  * Author: Peter Sutton, Ryan Wang
- *
- * Thin driver for the EECS LED matrix. Provides SPI primitives and
- * matrix-wide constants/colours. Higher-level rendering logic lives
- * in morse_led_display.c.
  */
 
 #ifndef LEDMATRIX_H_

@@ -1,10 +1,9 @@
 /*
  * ledmatrix.c
  *
- * Author: Peter Sutton, Ryan Wang
+ * Author: Peter Sutton
  *
- * Driver for the EECS LED matrix. SPI command primitives only.
- * See the LED matrix Reference for details of the SPI commands.
+ * See the LED matrix Reference for details of the SPI commands used.
  */
 
 #include "ledmatrix.h"
