@@ -230,6 +230,13 @@ void scroll_one_col_toward_present(void) {
     // shift display left (content moves left, col 15 clears) — newer content slides in from right
     ledmatrix_shift_display(SHIFT_LEFT);
     draw_matrix_col_from_buffer(MATRIX_NUM_COLUMNS - 1);  // render the rightmost
+
+    // show the inprogress char col
+    if (current_char_encoding != 0b1 && scroll_offset_cols < glyph_width) {
+        char incomplete_char = morse_to_char(current_char_encoding);
+        uint8_t preview_col_index = glyph_width - 1 - scroll_offset_cols;
+        draw_glyph_column(incomplete_char, preview_col_index, COLOUR_RED, MATRIX_NUM_COLUMNS - 1);
+    }
 }
 
 // UTILS
