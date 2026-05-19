@@ -18,5 +18,6 @@ void handle_dot_input_in_seven_segment(void);
 void handle_dash_input_in_seven_segment(void);
 void handle_submit_input_in_seven_segment(void);
 void handle_serial_char_in_seven_segment(void);
+void seven_segment_set_submitted_count(uint32_t count);
 
 #endif

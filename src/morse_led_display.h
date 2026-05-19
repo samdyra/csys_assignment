@@ -23,4 +23,13 @@ void snap_to_present(void);
 // full re-render from the buffer (used after font switch / scroll snap)
 void redraw_matrix_from_buffer(void);
 
+void restore_scrollback_from_eeprom(void);
+
+// replay restored scrollback to the serial terminal.
+// called once at boot, after clear_terminal().
+void replay_history_to_serial(void);
+
+// returns total_num_char_submitted (used to sync the 7-seg after restore).
+uint32_t get_total_char_submitted(void);
+
 #endif /* MORSE_LED_DISPLAY_H_ */

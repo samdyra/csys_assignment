@@ -90,3 +90,7 @@ void seven_segment_step(uint8_t mark_count, uint8_t submitted_count) {
         current_digit = 0;
     }
 }
+
+void seven_segment_set_submitted_count(uint32_t count) {
+    seven_seg_submitted_count = (uint8_t)count;  // truncate cuz only mod-16 matters for display
+}

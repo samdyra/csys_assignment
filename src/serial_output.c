@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "encoding.h"
+#include "ledmatrix.h"
 #include "terminalio.h"
 
 /* Internal Function Declarations */
@@ -56,4 +57,14 @@ static void print_uppercase(char character) {
         character = character - 'a' + 'A';
     }
     printf("%c", character);
+}
+
+// map LED matrix colour to terminal
+void replay_persisted_char_serial(char c, uint8_t colour) {
+    if (colour == COLOUR_GREEN) {
+        set_display_attribute(FG_GREEN);
+    } else if (colour == COLOUR_YELLOW) {
+        set_display_attribute(FG_YELLOW);
+    }
+    print_uppercase(c);
 }

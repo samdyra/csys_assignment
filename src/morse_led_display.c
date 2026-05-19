@@ -4,8 +4,10 @@
 #include <stdint.h>
 
 #include "display.h"
+#include "eeprom.h"
 #include "encoding.h"
 #include "ledmatrix.h"
+#include "serial_output.h"
 
 #define HISTORY_SIZE 50
 
@@ -13,10 +15,9 @@
 static void draw_glyph_column(char c, uint8_t col_in_glyph, uint8_t colour, uint8_t matrix_col);
 static void draw_char_in_current_font(char c, uint8_t x, uint8_t colour);
 static void draw_matrix_col_from_buffer(uint8_t matrix_col);
-static void update_led_matrix(void);
 static void update_incomplete_char(void);
 static void finish_in_progress_animation(void);
-static void push_to_history(char c, uint8_t colour);
+static void push_to_history_buf(char c, uint8_t colour);
 static uint16_t max_scroll_offset(void);
 
 // ============================================================================
@@ -105,10 +106,10 @@ static void draw_matrix_col_from_buffer(uint8_t matrix_col) {
         (int32_t)(total_num_char_submitted - 1) * glyph_width_and_space;
 
     // matrix leftmost col position in timeline
-    // scroll_offset shifts this further into the past.
     int32_t matrix_left_edge_col_on_timeline =
         rightmost_x_no_scroll_timeline - rightmost_x_no_scroll;
 
+    // scroll_offset shifts this further into the past.
     int32_t left_edge_offset_adjusted =
         matrix_left_edge_col_on_timeline - (int32_t)scroll_offset_cols;
 
@@ -192,7 +193,7 @@ void handle_submit_input_led_matrix(void) {
     snap_to_present();
     latest_generated_char = morse_to_char(current_char_encoding);
     current_char_encoding = 0b1;
-    push_to_history(latest_generated_char, COLOUR_GREEN);
+    push_to_history_buf(latest_generated_char, COLOUR_GREEN);
 
     // draw the latest submitted char at the right edge in green,
     // then queue the slide-left animation.
@@ -212,7 +213,7 @@ void handle_serial_char_led_matrix(char c) {
     draw_char_in_current_font(c, MATRIX_NUM_COLUMNS - glyph_width, COLOUR_YELLOW);
     pending_matrix_shifts = glyph_width_and_space;
     last_time_matrix_shift = shared_counter_0;
-    push_to_history(c, COLOUR_YELLOW);
+    push_to_history_buf(c, COLOUR_YELLOW);
 }
 
 void scroll_one_col_into_past(void) {
@@ -247,10 +248,15 @@ void set_font(uint8_t font) {
     scroll_offset_cols = 0;  // font change resets scroll
 }
 
-static void push_to_history(char c, uint8_t colour) {
+static void push_to_history_buf(char c, uint8_t colour) {
     uint8_t idx = total_num_char_submitted % HISTORY_SIZE;
     char_buffer_history[idx] = c;
     color_buffer_history[idx] = colour;
+
+    // persist to EEPROM. each slot is only written once per 50 submissions,
+    // satisfying the wear-leveling requirement automatically.
+    eeprom_save_slot(idx, c, colour, total_num_char_submitted);
+
     total_num_char_submitted++;
 }
 
@@ -268,7 +274,6 @@ static uint16_t max_scroll_offset(void) {
     int32_t newest_x_no_scroll = MATRIX_NUM_COLUMNS - glyph_width - glyph_width_and_space;
 
     // matrix col where the oldest visible char's left edge sits at scroll = 0.
-    // each older char is `stride` cols to the left of the next-newer one.
     int32_t oldest_x_no_scroll =
         newest_x_no_scroll - (int32_t)(num_chars_in_buffer - 1) * glyph_width_and_space;
 
@@ -279,3 +284,57 @@ static uint16_t max_scroll_offset(void) {
     // position to reach the right edge.
     return (uint16_t)(right_edge_x - oldest_x_no_scroll);
 }
+
+// replay the restored scrollback to the serial terminal in submission order
+// (oldest to newest). each char prints in its stored colour.
+void replay_history_to_serial(void) {
+    if (total_num_char_submitted == 0) return;
+
+    uint32_t num_chars_in_buffer =
+        (total_num_char_submitted < HISTORY_SIZE) ? total_num_char_submitted : HISTORY_SIZE;
+
+    uint32_t oldest_visible_index = total_num_char_submitted - num_chars_in_buffer;
+
+    // print oldest to newest so chars appear left-to-right on the terminal
+    for (uint32_t i = 0; i < num_chars_in_buffer; i++) {
+        uint32_t char_index = oldest_visible_index + i;
+        uint8_t buf_idx = char_index % HISTORY_SIZE;
+        replay_persisted_char_serial(char_buffer_history[buf_idx], color_buffer_history[buf_idx]);
+    }
+}
+
+// load scrollback from EEPROM into the in memory buffer.
+// called once at boot before main_loop starts.
+void restore_scrollback_from_eeprom(void) {
+    uint32_t max_seq = 0;
+    uint8_t any_valid = 0;
+
+    for (uint8_t slot = 0; slot < HISTORY_SIZE; slot++) {
+        char c;
+        uint8_t colour;
+        uint32_t seq;
+        eeprom_load_slot(slot, &c, &colour, &seq);
+
+        // EEPROM default state is 0xFF, 0xFFFFFFFF = never written.
+        if (seq == 0xFFFFFFFF) continue;
+
+        // sanity check: this slot should contain the char with seq % 50 == slot.
+        // if not, EEPROM is corrupted or stale — skip.
+        if ((uint8_t)(seq % HISTORY_SIZE) != slot) continue;
+
+        char_buffer_history[slot] = c;
+        color_buffer_history[slot] = colour;
+
+        if (!any_valid || seq > max_seq) {
+            max_seq = seq;
+            any_valid = 1;
+        }
+    }
+
+    if (any_valid) {
+        total_num_char_submitted = max_seq + 1;
+    }
+}
+
+// handler to give seven segment initial data
+uint32_t get_total_char_submitted(void) { return total_num_char_submitted; }

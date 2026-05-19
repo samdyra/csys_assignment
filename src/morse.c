@@ -13,6 +13,7 @@
 #include <stdio.h>
 
 #include "display.h"
+#include "eeprom.h"
 #include "encoding.h"
 #include "input.h"
 #include "io_leds.h"
@@ -45,6 +46,7 @@ void handle_dash(void);
 void handle_submit(void);
 void initialize_timer_0(void);
 void handle_char_from_serial(char c);
+void listen_button_input(void);
 
 // initialize timer and button inputs
 void initialize_timer_0(void) {
@@ -69,6 +71,8 @@ void initialise_hardware(void) {
     initialize_uq_io_board_led();
     seven_segment_init();
     initialize_timer_0();
+    restore_scrollback_from_eeprom();
+    seven_segment_set_submitted_count(get_total_char_submitted());
     sei();  // enable global interrupts
 }
 
@@ -88,10 +92,12 @@ void start_splash_screen(void) {
         ;  // do nothing til button press
     }
     ledmatrix_clear();
+    redraw_matrix_from_buffer();
 }
 
 void start_morse(void) {
     clear_terminal();
+    replay_history_to_serial();
     main_loop();
 }
 
