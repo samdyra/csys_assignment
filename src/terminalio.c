@@ -17,3 +17,5 @@ void clear_terminal(void) { printf("\x1b[2J"); }
 void set_display_attribute(DisplayParameter parameter) {
     printf("\x1b[%dm", parameter);
 }  // \x1b = ESC, m = graphic rendition
+
+void hide_terminal_cursor(void) { printf("\x1b[?25l"); }

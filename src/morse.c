@@ -97,6 +97,7 @@ void start_splash_screen(void) {
 
 void start_morse(void) {
     clear_terminal();
+    hide_terminal_cursor();
     replay_history_to_serial();
     main_loop();
 }
