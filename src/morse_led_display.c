@@ -20,10 +20,7 @@ static void finish_in_progress_animation(void);
 static void push_to_history_buf(char c, uint8_t colour);
 static uint16_t max_scroll_offset(void);
 
-// ============================================================================
-// MODEL — state owned by this module
-// ============================================================================
-
+// MODEL
 // access morse.c's timer counter
 extern volatile uint32_t shared_counter_0;
 
@@ -170,9 +167,7 @@ void snap_to_present(void) {
     redraw_matrix_from_buffer();
 }
 
-// ============================================================================
 // EVENT HANDLER
-// ============================================================================
 
 void handle_dot_input_led_matrix(void) {
     // led matrix handling on click dot
