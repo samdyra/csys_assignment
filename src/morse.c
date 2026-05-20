@@ -155,14 +155,15 @@ void handle_dash(void) {
 
 void handle_submit(void) {
     // early return for 3rd+ submit
-    if (consecutive_submits > 1) return;
+    if (consecutive_submits >= 2) return;
 
     handle_submit_input_in_uq_io_led(consecutive_submits);
     handle_submit_input_led_matrix();
     handle_submit_input_in_seven_segment();
     handle_submit_input_in_serial_output();
 
-    consecutive_submits++;
+    // bare submit (no existing marks) creates a space = 2 submit.
+    consecutive_submits = has_mark_in_current_char ? 1 : 2;
     has_mark_in_current_char = 0;
 }
 

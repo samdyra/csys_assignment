@@ -28,7 +28,7 @@ struct eeprom_slot {
 static struct eeprom_slot EEMEM eeprom_slots[50];
 
 // write one slot to EEPROM.
-// the AVR EEPROM API takes POINTERS, not raw integer addresses. so we
+// the AVR EEPROM API takes pinters, not raw integer addresses. so we
 // pass the address of the specific field
 // (use update instead of write for efficiency)
 void eeprom_save_slot(uint8_t slot, char c, uint8_t colour, uint32_t seq) {
