@@ -90,7 +90,7 @@ void handle_submit_input_in_uq_io_led(uint8_t consecutive_submits) {
 void handle_serial_char_in_uq_io_led(uint8_t encoding) {
     uint8_t mask = 0b10000000;  // start with mask = 0b10000000 (bit 7)
     // loop through mask, until find 1
-    while (mask && !(encoding & mask)) {  // encoding ex: 0b0010000
+    while (mask && !(encoding & mask)) {  // encoding ex: 0b0010010
         mask = mask >> 1;                 // shift right until we hit a 1 or mask = 0
     }
 
@@ -108,7 +108,7 @@ void handle_serial_char_in_uq_io_led(uint8_t encoding) {
         }
 
         if (encoding & mark_mask) {
-            // dash: 3 ON beats
+            // 1 = dash = 3 high beats
             enqueue_tick(1);
             enqueue_tick(1);
             enqueue_tick(1);
@@ -141,7 +141,7 @@ static void enqueue_tick(uint8_t tick) {
         tick_queue[queue_tail] = tick & 1;
 
         // make the array circular
-        // Advance tail by 1, wrapping back to 0 if it would go past the end.
+        // advance tail by 1, wrapping back to 0 if it would go past the end.
         //  ex: queue_tail = 30 → (30+1) % 32 = 31    (normal step)
         // exL  queue_tail = 31 → (31+1) % 32 = 0     (wraps to start)
         queue_tail = (queue_tail + 1) % TICK_QUEUE_SIZE;

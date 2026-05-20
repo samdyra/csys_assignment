@@ -53,7 +53,7 @@ void initialize_timer_0(void) {
     TIMSK0 = (1 << OCIE0A);              // enable compare match interrupt
     TCCR0A = (1 << WGM01);               // ctc mode
     TCCR0B = (1 << CS01) | (1 << CS00);  // prescaler 64
-    OCR0A = 249;                         // 250 ticks × 8us = 2ms
+    OCR0A = 249;                         // (249+1) ticks x 8 miu s = 2ms interrupt
 }
 
 // run everything

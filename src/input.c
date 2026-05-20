@@ -84,7 +84,7 @@ void listen_joystick_input(void) {
         interval_ms = 50;  // fast
     }
 
-    if (shared_counter_0 - last_scroll_tick < interval_ms) return;  // rate limiter
+    if (shared_counter_0 - last_scroll_tick < interval_ms) return;  // rate limiter/stopper
     last_scroll_tick = shared_counter_0;
 
     if (direction > 0) {
