@@ -96,16 +96,18 @@ void handle_serial_char_in_uq_io_led(uint8_t encoding) {
 
     if (mask == 0) return;  // if nothing was set (all 0), do nothing
 
-    uint8_t actual_data = mask >> 1;  // get the actual marks (after first 1)
+    // mark_mask (single-bit cursor): it starts one bit below the prefix
+    // and walks right
+    uint8_t mark_mask = mask >> 1;
 
     // iterate actual data (a bit after the first 1)
     uint8_t is_first = 1;
-    while (actual_data) {
+    while (mark_mask) {
         if (!is_first) {
             enqueue_tick(0);  // inter-mark gap
         }
 
-        if (encoding & actual_data) {
+        if (encoding & mark_mask) {
             // dash: 3 ON beats
             enqueue_tick(1);
             enqueue_tick(1);
@@ -116,7 +118,7 @@ void handle_serial_char_in_uq_io_led(uint8_t encoding) {
         }
 
         is_first = 0;
-        actual_data >>= 1;
+        mark_mask = mark_mask >> 1;
     }
 
     update_io_leds();  // immediate first beat
