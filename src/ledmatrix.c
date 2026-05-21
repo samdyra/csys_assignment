@@ -20,10 +20,11 @@
 
 void ledmatrix_update_column(uint8_t x, uint8_t pixels[MATRIX_NUM_ROWS]) {
     if (x >= MATRIX_NUM_COLUMNS) {
+        // x value is too large - we ignore the request
         return;
     }
     (void)spi_send_byte(CMD_UPDATE_COL);
-    (void)spi_send_byte(x & 0x0F);
+    (void)spi_send_byte(x & 0x0F);  // column number
     for (uint8_t y = 0; y < MATRIX_NUM_ROWS; y++) {
         (void)spi_send_byte(pixels[y]);
     }

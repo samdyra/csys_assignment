@@ -165,6 +165,7 @@ void handle_submit(void) {
     handle_submit_input_in_serial_output();
 
     // bare submit (no existing marks) creates a space = 2 submit.
+    // the conditional is to handle click submit without any mark
     consecutive_submits = has_mark_in_current_char ? 1 : 2;
     has_mark_in_current_char = 0;
 }

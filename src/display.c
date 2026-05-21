@@ -174,12 +174,14 @@ void draw_large_glyph_column(char c, uint8_t col_in_glyph, uint8_t colour, uint8
     ledmatrix_update_column(matrix_col, color_result);
 }
 
+// draw single small char
 void draw_small_char(char character, uint8_t x_position, uint8_t colour) {
     for (uint8_t col = 0; col < GLYPH_WIDTH_SMALL; col++) {
         draw_small_glyph_column(character, col, colour, x_position + col);
     }
 }
 
+// draw single large char
 void draw_large_char(char character, uint8_t x_position, uint8_t colour) {
     for (uint8_t col = 0; col < GLYPH_WIDTH_LARGE; col++) {
         draw_large_glyph_column(character, col, colour, x_position + col);

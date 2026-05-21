@@ -142,7 +142,7 @@ static void update_incomplete_char(void) {
 // font switch or scroll snap.
 void redraw_matrix_from_buffer(void) {
     ledmatrix_clear();
-    // cancel any in-flight slide animation so it doesn't shift our fresh render
+    // cancel any in progress slide animation so it doesn't shift our fresh render
     pending_matrix_shifts = 0;
 
     // column-by-column rendering — naturally handles partial chars
@@ -190,9 +190,9 @@ void handle_submit_input_led_matrix(void) {
     current_char_encoding = 0b1;
     push_to_history_buf(latest_generated_char, COLOUR_GREEN);
 
+    finish_in_progress_animation();
     // draw the latest submitted char at the right edge in green,
     // then queue the slide-left animation.
-    finish_in_progress_animation();
     if (latest_generated_char != 0) {
         draw_char_in_current_font(latest_generated_char, MATRIX_NUM_COLUMNS - glyph_width,
                                   COLOUR_GREEN);
@@ -201,6 +201,7 @@ void handle_submit_input_led_matrix(void) {
     }
 }
 
+// handle serial terminal input to led matrix
 void handle_serial_char_led_matrix(char c) {
     snap_to_present();
     finish_in_progress_animation();  // finish any pending animation
@@ -236,6 +237,7 @@ void scroll_one_col_toward_present(void) {
 
 // UTILS
 
+// event handler called in input.c
 void set_font(uint8_t font) {
     current_font = font;
     if (font == 0) {

@@ -102,6 +102,7 @@ static void handle_press_button_async(void) {
     uint8_t edges = curr & ~prev;
     prev = curr;
 
+    // dot/dash/submit handlers handled in morse.c
     if (edges & (1 << 0)) handle_dot();
     if (edges & (1 << 1)) handle_dash();
     if (edges & (1 << 2)) handle_submit();

@@ -33,6 +33,7 @@ void render_uq_io_board_led(void) {
 static void update_io_leds(void) {
     if (queue_count == 0) return;  // nothing to animate
 
+    // get head from circular buffer
     uint8_t tick = dequeue_tick();
     led_pattern = (led_pattern << 1) | tick;
     // port A = lower half of led
@@ -142,8 +143,8 @@ static void enqueue_tick(uint8_t tick) {
 
         // make the array circular
         // advance tail by 1, wrapping back to 0 if it would go past the end.
-        //  ex: queue_tail = 30 → (30+1) % 32 = 31    (normal step)
-        // exL  queue_tail = 31 → (31+1) % 32 = 0     (wraps to start)
+        //  ex: queue_tail = 30 => (30+1) % 32 = 31    (normal step)
+        // exL  queue_tail = 31 => (31+1) % 32 = 0     (wraps to start)
         queue_tail = (queue_tail + 1) % TICK_QUEUE_SIZE;
 
         queue_count++;
