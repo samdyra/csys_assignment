@@ -123,7 +123,9 @@ static void draw_matrix_col_from_buffer(uint8_t matrix_col) {
     if (char_index_buf >= total_num_char_submitted) return;  // past the newest
     if (col_in_led >= glyph_width) return;                   // space between chars
 
+    // circ buffer wrap
     uint8_t index_in_buf = char_index_buf % HISTORY_SIZE;
+
     char char_from_buf = char_buffer_history[index_in_buf];
     uint8_t color_from_buf = color_buffer_history[index_in_buf];
 
@@ -289,24 +291,6 @@ static uint16_t max_scroll_offset(void) {
     return (uint16_t)(right_edge_x - oldest_x_no_scroll);
 }
 
-// replay the restored scrollback to the serial terminal in submission order
-// (oldest to newest). each char prints in its stored colour.
-void replay_history_to_serial(void) {
-    if (total_num_char_submitted == 0) return;
-
-    uint32_t num_chars_in_buffer =
-        (total_num_char_submitted < HISTORY_SIZE) ? total_num_char_submitted : HISTORY_SIZE;
-
-    uint32_t oldest_visible_index = total_num_char_submitted - num_chars_in_buffer;
-
-    // print oldest to newest so chars appear left-to-right on the terminal
-    for (uint32_t i = 0; i < num_chars_in_buffer; i++) {
-        uint32_t char_index = oldest_visible_index + i;
-        uint8_t buf_idx = char_index % HISTORY_SIZE;
-        replay_persisted_char_serial(char_buffer_history[buf_idx], color_buffer_history[buf_idx]);
-    }
-}
-
 // load scrollback from EEPROM into the in memory buffer.
 // called once at boot before main_loop starts.
 void restore_scrollback_from_eeprom(void) {
@@ -337,6 +321,26 @@ void restore_scrollback_from_eeprom(void) {
 
     if (any_valid) {
         total_num_char_submitted = max_seq + 1;
+    }
+}
+
+// replay the restored scrollback to the serial terminal in submission order
+// (oldest to newest). each char prints in its stored colour.
+// ran after restore_scrollback_from_eeprom in morse.c
+void replay_history_to_serial(void) {
+    if (total_num_char_submitted == 0) return;
+
+    uint32_t num_chars_in_buffer =
+        (total_num_char_submitted < HISTORY_SIZE) ? total_num_char_submitted : HISTORY_SIZE;
+
+    uint32_t oldest_visible_index = total_num_char_submitted - num_chars_in_buffer;
+
+    // print oldest to newest so chars appear left-to-right on the terminal
+    for (uint32_t i = 0; i < num_chars_in_buffer; i++) {
+        uint32_t char_index = oldest_visible_index + i;
+        uint8_t buf_idx = char_index % HISTORY_SIZE;
+        // render the chars in memory to serial terminal
+        replay_persisted_char_serial(char_buffer_history[buf_idx], color_buffer_history[buf_idx]);
     }
 }
 
